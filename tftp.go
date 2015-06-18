@@ -75,7 +75,7 @@ func (f HandlerFunc) ServeTFTP(w ResponseWriter, r *Request) {
 
 // ResponseWriter provides an interface which allows a TFTP handler to write
 // TFTP data packets to a client.  The default ResponseWriter binds a new UDP
-// socket to communicate with a client, and closes it when Flush is called.
+// socket to communicate with a client, and closes it when Close is called.
 //
 // ResponseWriter implementations should buffer some data internally, in order
 // to send 512 byte blocks in a "lock-step" fashion to a client.
