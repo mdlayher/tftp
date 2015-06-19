@@ -3,7 +3,6 @@ package tftp
 
 import (
 	"bytes"
-	"io"
 )
 
 //go:generate stringer -output=string.go -type=ErrorCode,Opcode
@@ -97,77 +96,16 @@ type ResponseWriter interface {
 //
 // BUG(mdlayher): this could be heavily optimized in the future to not read
 // a single byte at a time
-func fromNetASCII(p []byte) ([]byte, error) {
-	out := bytes.NewBuffer(nil)
+func fromNetASCII(p []byte) []byte {
+	b := make([]byte, len(p))
+	copy(b, p)
 
 	// If using netascii mode, some conversions must be made from
 	// input data:
 	//   -   CR+LF -> LF
 	//   - CR+NULL -> CR
-	in := bytes.NewBuffer(p)
-	for {
-		// Read a single byte until EOF, then break the loop
-		b, err := in.ReadByte()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
+	b = bytes.Replace(b, []byte{'\r', '\n'}, []byte{'\n'}, -1)
+	b = bytes.Replace(b, []byte{'\r', 0}, []byte{'\r'}, -1)
 
-			return nil, err
-		}
-
-		// If byte is not a carriage return, write it as-is,
-		// or if bytes is a carriage return and no further bytes exist,
-		// write the carriage return as-is
-		if b != '\r' || (b == '\r' && in.Len() == 0) {
-			_ = out.WriteByte(b)
-			continue
-		}
-
-		// Read next byte (should be a line feed or NULL)
-		bb, err := in.ReadByte()
-		if err != nil {
-			return nil, err
-		}
-
-		switch bb {
-		// Convert CR+LF to LF
-		case '\n':
-			_ = out.WriteByte('\n')
-		// Convert CR+NULL to CR
-		case 0:
-			_ = out.WriteByte('\r')
-		}
-	}
-
-	return out.Bytes(), nil
-}
-
-// toNetASCII performs the necessary conversions to an input buffer
-// needed when a client is using netascii mode.
-//
-// BUG(mdlayher): this could be heavily optimized in the future to not write
-// a single byte at a time
-func toNetASCII(p []byte) []byte {
-	out := bytes.NewBuffer(nil)
-
-	// If using netascii mode, some conversions must be made to
-	// input data:
-	//   - LF -> CR+LF
-	//   - CR -> CR+NULL
-	for i := 0; i < len(p); i++ {
-		// Prepend carriage return to line feeds
-		if p[i] == '\n' {
-			_ = out.WriteByte('\r')
-		}
-
-		_ = out.WriteByte(p[i])
-
-		// Append NULL to carriage return
-		if p[i] == '\r' {
-			_ = out.WriteByte(0)
-		}
-	}
-
-	return out.Bytes()
+	return b
 }
